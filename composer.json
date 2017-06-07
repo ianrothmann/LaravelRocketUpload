@@ -1,0 +1,23 @@
+{
+    "name": "ianrothmann/laravel-rocket-upload",
+    "description": "Back-end handler for file uploads. Designed to complement the Rocket Vue App Framework Multiple File Upload.",
+    "version": "0.5.0",
+	"type": "library",
+    "license": "Apache2",
+    "authors": [
+        {
+            "name": "Ian Rothmann",
+            "email": "ian@conceptsphere.com"
+        }
+    ],
+    "require": {
+		"php": ">=5.4.0",
+        "laravel/framework": "5.4.*",
+        "intervention/image": "^2.3"
+	},
+	"autoload": {
+        "psr-4": {
+            "IanRothmann\\LaravelRocketUpload\\": "src/"
+        }
+    }
+}
