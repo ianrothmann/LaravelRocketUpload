@@ -19,9 +19,17 @@ class LaravelRocketUpload
     private $command;
     private $config=[
         'thumbnail'=>['w'=>128,'h'=>128],
+        'primaryKey'=>'fileid',
         'model'=>'App\Models\File',
         'directory'=>'uploadedfiles'
     ];
+
+    /**
+     * @var \Closure $imageProcessor
+     * @var \Closure $processor
+     */
+    private $imageProcessor=null;
+    private $processor=null;
 
     public function request(Request $request,$key='file'){
         $this->file=$request->file($key);
@@ -47,6 +55,12 @@ class LaravelRocketUpload
         return $this;
     }
 
+    public function maxDimensions($width,$height){
+        $this->config['imgMax']['w']=$width;
+        $this->config['imgMax']['h']=$height;
+        return $this;
+    }
+
     public function fileModel($modelname){
         $this->config['model']=$modelname;
         return $this;
@@ -57,26 +71,117 @@ class LaravelRocketUpload
         return $this;
     }
 
+    public function disk($disk){
+        $this->config['disk']=$disk;
+        return $this;
+    }
+
+    private function putFile($directory,$file){
+        $disk=null;
+        if(array_key_exists('disk',$this->config))
+            $disk=$this->config['disk'];
+
+        if($disk){
+            return Storage::disk($disk)->putFile($directory,$file);
+        }else{
+            return Storage::putFile($directory,$file);
+        }
+    }
+
+    private function put($directory,$filename,$extension,$contents){
+        $disk=null;
+        if(array_key_exists('disk',$this->config))
+            $disk=$this->config['disk'];
+
+        $fullPath=$directory.'/'.uniqid().'.'.$extension;
+
+        if($disk){
+            Storage::disk($disk)->put($fullPath,$contents);
+            return $fullPath;
+        }else{
+            Storage::put($fullPath,$contents);
+            return $fullPath;
+        }
+    }
+
+    private function url($filename){
+        $disk=null;
+        if(array_key_exists('disk',$this->config))
+            $disk=$this->config['disk'];
+
+         return $disk?Storage::disk($disk)->url($filename):Storage::url($filename);
+    }
+
+    public function processImageWith(\Closure $closure){
+        $this->imageProcessor=$closure;
+    }
+
+    public function processWith(\Closure $closure){
+        $this->processor=$closure;
+    }
+
     public function handleUpload(){
+
+
         if ($this->file->isValid()) {
             if($this->file->getSize()<=$this->file_upload_max_size()){
                 $model=$this->config['model'];
                 $file=[
-                    'filename'=>$this->file->store($this->config['directory']),
                     'mimetype'=>$this->file->getMimeType(),
                     'size'=>$this->file->getSize(),
                     'extension'=>$this->file->getClientOriginalExtension(),
                     'originalfilename'=>$this->file->getClientOriginalName(),
                 ];
-                $file['url']=Storage::url($file['filename']);
 
-                if(stripos($file['mimetype'],'image')!==FALSE)
-                    $file['thumbnail'] = Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode('data-url')->encoded;
+                $uploadedFile=$this->file;
+
+                if(array_key_exists('maxImg',$this->config)){
+                    $resizedFile=Image::make($uploadedFile);
+                    $resizedFile->resize($this->config['maxImg']['w'], $this->config['maxImg']['h'], function ($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize();
+                    });
+
+                    $imgFunc=$this->imageProcessor;
+                    if($imgFunc!==null && is_callable($imgFunc)){
+                        $resizedFile=$imgFunc($resizedFile)->encode();
+                    }else{
+                        $resizedFile->encode();
+                    }
+
+                    $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$resizedFile);
+                }else{
+                    $imgFunc=$this->imageProcessor;
+                    $func=$this->processor;
+                    if($imgFunc!==null && is_callable($imgFunc)){
+                        $processedFile=Image::make($uploadedFile);
+                        $processedFile=$imgFunc($processedFile)->encode();
+                        $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$processedFile);
+                    }elseif($func!==null && is_callable($func)){
+                        $file_contents=file_get_contents($uploadedFile->getRealPath());
+                        $file_contents=$func($file_contents);
+                        file_put_contents($uploadedFile->getRealPath(),$file_contents);
+                        $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$file_contents);
+                    }else{
+                        $file['filename']=$this->putFile($this->config['directory'],$uploadedFile);
+                    }
+
+                }
+
+                $file['url']=$this->url($file['filename']);
+
+                if(stripos($file['mimetype'],'image')!==FALSE){
+                    $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
+                    $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail);
+                    $file['thumbnail']=$this->url($thumbFileName);
+                }
+
 
                 $file_model=new $model;
                 $file_model->fill($file);
                 $file_model->save();
-
+                //$primaryKey=$this->config['primaryKey'];
+                //$file_model=$model::find($file_model->$primaryKey);
                 return $file_model;
             }else{
                 return response("The file is larger than {$this->human_filesize($this->file->getSize(),2)}.",500);
