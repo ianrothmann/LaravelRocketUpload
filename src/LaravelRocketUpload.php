@@ -149,14 +149,14 @@ class LaravelRocketUpload
                         $resizedFile->encode();
                     }
 
-                    $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$resizedFile);
+                    $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$resizedFile->__toString());
                 }else{
                     $imgFunc=$this->imageProcessor;
                     $func=$this->processor;
                     if($imgFunc!==null && is_callable($imgFunc)){
                         $processedFile=Image::make($uploadedFile);
                         $processedFile=$imgFunc($processedFile)->encode();
-                        $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$processedFile);
+                        $file['filename']=$this->put($this->config['directory'],$file['originalfilename'],$file['extension'],$processedFile->__toString());
                     }elseif($func!==null && is_callable($func)){
                         $file_contents=file_get_contents($uploadedFile->getRealPath());
                         $file_contents=$func($file_contents);
@@ -172,7 +172,7 @@ class LaravelRocketUpload
 
                 if(stripos($file['mimetype'],'image')!==FALSE){
                     $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
-                    $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail);
+                    $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail->__toString());
                     $file['thumbnail']=$this->url($thumbFileName);
                 }
 
