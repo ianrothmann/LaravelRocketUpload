@@ -27,9 +27,11 @@ class LaravelRocketUpload
     /**
      * @var \Closure $imageProcessor
      * @var \Closure $processor
+     * @var \Closure $afterUploadClosure
      */
     private $imageProcessor=null;
     private $processor=null;
+    private $afterUploadClosure=null;
 
     public function request(Request $request,$key='file'){
         $this->file=$request->file($key);
@@ -114,10 +116,25 @@ class LaravelRocketUpload
 
     public function processImageWith(\Closure $closure){
         $this->imageProcessor=$closure;
+        return $this;
     }
 
     public function processWith(\Closure $closure){
         $this->processor=$closure;
+        return $this;
+    }
+
+    //func parameters ($file_model)
+    public function afterUpload($func){
+        $this->afterUploadClosure=$func;
+        return $this;
+    }
+
+    private function executeAfterUpload($file_model){
+        $closure=$this->afterUploadClosure;
+        if($closure!=null && is_callable($closure)){
+            $closure($file_model);
+        }
     }
 
     public function handleUpload(){
@@ -182,6 +199,7 @@ class LaravelRocketUpload
                 $file_model->save();
                 //$primaryKey=$this->config['primaryKey'];
                 //$file_model=$model::find($file_model->$primaryKey);
+                $this->executeAfterUpload($file_model);
                 return $file_model;
             }else{
                 return response("The file is larger than {$this->human_filesize($this->file->getSize(),2)}.",500);
