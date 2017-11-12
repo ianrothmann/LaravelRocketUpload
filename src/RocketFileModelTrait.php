@@ -19,7 +19,7 @@ trait RocketFileModelTrait
     }
 
     public function getThumbnailAttribute($url){
-        if($this->private==1){
+        if($this->private==1&&$this->thumbnail_filename!=''){
             if(\Config::has('rocketframework.disks.private')){
                 $disk=\Config::get('rocketframework.disks.private');
             }else{
