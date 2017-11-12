@@ -9,6 +9,7 @@
 namespace IanRothmann\LaravelRocketUpload;
 
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
@@ -21,7 +22,8 @@ class LaravelRocketUpload
         'thumbnail'=>['w'=>128,'h'=>128],
         'primaryKey'=>'fileid',
         'model'=>'App\Models\File',
-        'directory'=>'uploadedfiles'
+        'directory'=>'uploadedfiles',
+        'private'=>0
     ];
 
     /**
@@ -78,7 +80,34 @@ class LaravelRocketUpload
         return $this;
     }
 
+    public function privateFile(){
+        $this->config['private']=1;
+        return $this;
+    }
+
+    public function publicFile(){
+        $this->config['private']=0;
+        return $this;
+    }
+
+    private function processDisk(){
+        if(!array_key_exists('disk',$this->config)){
+            if($this->config['private']==1){
+                if(\Config::has('rocketframework.disks.private')){
+                    $this->config['disk']=\Config::get('rocketframework.disks.private');
+                }else{
+                    throw new \Exception("Private disk not specified in rocketframework config.");
+                }
+            }else{
+                if(\Config::has('rocketframework.disks.public')) {
+                    $this->config['disk'] = \Config::get('rocketframework.disks.public');
+                }
+            }
+        }
+    }
+
     private function putFile($directory,$file){
+        $this->processDisk();
         $disk=null;
         if(array_key_exists('disk',$this->config))
             $disk=$this->config['disk'];
@@ -91,6 +120,7 @@ class LaravelRocketUpload
     }
 
     private function put($directory,$filename,$extension,$contents){
+        $this->processDisk();
         $disk=null;
         if(array_key_exists('disk',$this->config))
             $disk=$this->config['disk'];
@@ -107,6 +137,7 @@ class LaravelRocketUpload
     }
 
     private function url($filename){
+        $this->processDisk();
         $disk=null;
         if(array_key_exists('disk',$this->config))
             $disk=$this->config['disk'];
@@ -134,6 +165,21 @@ class LaravelRocketUpload
         $closure=$this->afterUploadClosure;
         if($closure!=null && is_callable($closure)){
             $closure($file_model);
+        }
+    }
+
+    public function handleDownload($id){
+        $model=$this->config['model'];
+        $file=$model::find($id);
+        if($file->private){
+            if(\Config::has('rocketframework.disks.private')){
+                $disk=\Config::get('rocketframework.disks.private');
+            }else{
+                throw new \Exception("Private disk not specified in rocketframework config.");
+            }
+            return \Storage::disk($disk)->temporaryUrl($file->filename,Carbon::now()->addMinutes(5));
+        }else{
+            return $file->url;
         }
     }
 
@@ -191,8 +237,9 @@ class LaravelRocketUpload
                     $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
                     $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail->__toString());
                     $file['thumbnail']=$this->url($thumbFileName);
+                    $file['thumbnail_filename']=$thumbFileName;
                 }
-
+                $file['private']=$this->config['private'];
 
                 $file_model=new $model;
                 $file_model->fill($file);
@@ -200,7 +247,7 @@ class LaravelRocketUpload
                 //$primaryKey=$this->config['primaryKey'];
                 //$file_model=$model::find($file_model->$primaryKey);
                 $this->executeAfterUpload($file_model);
-                return $file_model;
+                return $file_model->fresh();
             }else{
                 return response("The file is larger than {$this->human_filesize($this->file->getSize(),2)}.",500);
             }
