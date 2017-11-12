@@ -27,6 +27,9 @@ return RocketUpload::request($request)
                      //Do something here
                      return $image;
                   })
+                  ->afterUpload(function(File $file){
+                     //Do something with file model here
+                  })
                 ->handle();
 
 ```
