@@ -1,5 +1,6 @@
 <?php
 namespace IanRothmann\LaravelRocketUpload;
+use Carbon\Carbon;
 
 trait RocketFileModelTrait
 {
