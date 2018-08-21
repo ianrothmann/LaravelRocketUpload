@@ -25,6 +25,7 @@ class LaravelRocketUpload
         'directory'=>'uploadedfiles',
         'private'=>0
     ];
+    private $imgMimes=['image/jpg','image/jpeg','image/png','image/gif'];
 
     /**
      * @var \Closure $imageProcessor
@@ -233,7 +234,7 @@ class LaravelRocketUpload
 
                 $file['url']=$this->url($file['filename']);
 
-                if(stripos($file['mimetype'],'image')!==FALSE){
+                if(in_array(trim(strtolower($file['mimetype'])),$this->imgMimes)){
                     $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
                     $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail->__toString());
                     $file['thumbnail']=$this->url($thumbFileName);

@@ -2,7 +2,7 @@
     "name": "ianrothmann/laravel-rocket-upload",
     "description": "Back-end handler for file uploads. Designed to complement the Rocket Vue App Framework Multiple File Upload.",
 	"type": "library",
-    "license": "Apache2",
+    "license": "Apache-2.0",
     "authors": [
         {
             "name": "Ian Rothmann",
