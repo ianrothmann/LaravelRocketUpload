@@ -61,8 +61,9 @@ class LaravelRocketUpload
     }
 
     public function maxDimensions($width,$height){
-        $this->config['imgMax']['w']=$width;
-        $this->config['imgMax']['h']=$height;
+        $this->config['maxImg']=[];
+        $this->config['maxImg']['w']=$width;
+        $this->config['maxImg']['h']=$height;
         return $this;
     }
 
