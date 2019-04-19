@@ -27,6 +27,8 @@ class LaravelRocketUpload
     ];
     private $imgMimes=['image/jpg','image/jpeg','image/png','image/gif'];
 
+    private $allowedTypes=null;
+
     /**
      * @var \Closure $imageProcessor
      * @var \Closure $processor
@@ -64,6 +66,14 @@ class LaravelRocketUpload
         $this->config['maxImg']=[];
         $this->config['maxImg']['w']=$width;
         $this->config['maxImg']['h']=$height;
+        return $this;
+    }
+
+    public function allowTypes($extensionArray){
+        $this->allowedTypes=[];
+        foreach ($extensionArray as $ext){
+            $this->allowedTypes[]=strtolower($ext);
+        }
         return $this;
     }
 
@@ -190,6 +200,13 @@ class LaravelRocketUpload
 
         if ($this->file->isValid()) {
             if($this->file->getSize()<=$this->file_upload_max_size()){
+
+                if($this->allowedTypes){
+                    if(!in_array(strtolower($this->file->getClientOriginalExtension()),$this->allowedTypes)){
+                        return response("Only the following file types are allowed: ".implode(',',$this->allowedTypes),500);
+                    }
+                }
+
                 $model=$this->config['model'];
                 $file=[
                     'mimetype'=>$this->file->getMimeType(),
