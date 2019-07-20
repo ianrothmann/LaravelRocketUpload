@@ -19,7 +19,7 @@ class LaravelRocketUpload
     private $file;
     private $command;
     private $config=[
-        'thumbnail'=>['w'=>128,'h'=>128],
+        'thumbnail'=>['w'=>128,'h'=>128,'fit'=>true],
         'primaryKey'=>'fileid',
         'model'=>'App\Models\File',
         'directory'=>'uploadedfiles',
@@ -56,9 +56,10 @@ class LaravelRocketUpload
         return response('Deleted',200);
     }
 
-    public function thumbnail($width,$height){
+    public function thumbnail($width,$height, $fit=true){
         $this->config['thumbnail']['w']=$width;
         $this->config['thumbnail']['h']=$height;
+        $this->config['thumbnail']['fit']=$fit;
         return $this;
     }
 
@@ -253,7 +254,14 @@ class LaravelRocketUpload
                 $file['url']=$this->url($file['filename']);
 
                 if(in_array(trim(strtolower($file['mimetype'])),$this->imgMimes)){
-                    $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
+                    if($this->config['thumbnail']['fit']){
+                        $thumbnail=Image::make($this->file)->fit($this->config['thumbnail']['w'], $this->config['thumbnail']['h'])->encode();
+                    }else{
+                        $thumbnail=Image::make($this->file)->resize($this->config['thumbnail']['w'], $this->config['thumbnail']['h'],
+                            function ($constraint) {
+                                $constraint->aspectRatio();
+                            })->encode();
+                    }
                     $thumbFileName=$this->put($this->config['directory'].'/thumbnails',$file['originalfilename'],$file['extension'],$thumbnail->__toString());
                     $file['thumbnail']=$this->url($thumbFileName);
                     $file['thumbnail_filename']=$thumbFileName;
