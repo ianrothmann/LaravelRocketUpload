@@ -20,7 +20,7 @@ An example of an Image
 return RocketUpload::request($request)
                 ->disk('s3') //optional
                 ->directory('uploadedfiles')
-                ->thumbnail($w,$h)
+                ->thumbnail($w,$h,$fit) //$fit=true by default, if false it will resize the picture and not cut off
                 ->maxDimensions($w,$h)
                 ->processImageWith(function(Image $image){
                      //Intervention Image Object
